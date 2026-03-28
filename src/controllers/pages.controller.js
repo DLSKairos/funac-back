@@ -10,7 +10,7 @@ const getPage = async (req, res) => {
   }
 
   const result = await query(
-    `SELECT id, seccion, contenido, orden
+    `SELECT id, seccion, contenido, orden, icono
      FROM contenido_paginas
      WHERE pagina = $1 AND activo = TRUE
      ORDER BY orden ASC`,

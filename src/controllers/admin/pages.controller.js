@@ -23,7 +23,7 @@ const getPageContent = async (req, res) => {
   }
 
   const result = await query(
-    `SELECT id, seccion, contenido, orden, activo, actualizado_por, actualizado_en
+    `SELECT id, seccion, contenido, orden, icono, activo, actualizado_por, actualizado_en
      FROM contenido_paginas
      WHERE pagina = $1
      ORDER BY orden ASC`,
@@ -62,11 +62,12 @@ const updatePage = async (req, res) => {
       const contenidoSanitizado = sanitizeHtml(seccion.contenido || '');
 
       await client.query(
-        `INSERT INTO contenido_paginas (pagina, seccion, contenido, orden, activo, actualizado_por)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO contenido_paginas (pagina, seccion, contenido, orden, icono, activo, actualizado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (pagina, seccion) DO UPDATE
          SET contenido = EXCLUDED.contenido,
              orden = EXCLUDED.orden,
+             icono = EXCLUDED.icono,
              activo = EXCLUDED.activo,
              actualizado_por = EXCLUDED.actualizado_por,
              actualizado_en = NOW()`,
@@ -75,6 +76,7 @@ const updatePage = async (req, res) => {
           seccion.seccion,
           contenidoSanitizado,
           seccion.orden !== undefined ? seccion.orden : index,
+          seccion.icono || null,
           seccion.activo !== false,
           req.user.id,
         ]
