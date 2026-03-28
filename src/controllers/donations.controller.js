@@ -30,7 +30,6 @@ const initDonation = async (req, res) => {
     return res.status(400).json({ success: false, error: error.details[0].message });
   }
 
-  // Insertar donacion en estado pendiente para obtener el ID
   const result = await query(
     `INSERT INTO donaciones
       (nombre_completo, email, telefono, cedula, monto, moneda, es_recurrente,
@@ -53,18 +52,6 @@ const initDonation = async (req, res) => {
   const donacion = result.rows[0];
   const referencia = generateReference(donacion.id);
 
-  // Obtener URL de checkout de ePayco
-  const checkout = await epaycoService.initCheckout({
-    referencia,
-    monto: donacion.monto,
-    moneda: donacion.moneda,
-    nombre_completo: donacion.nombre_completo,
-    email: donacion.email,
-    telefono: value.telefono,
-    descripcion: `Donacion FUNAC - ${referencia}`,
-  });
-
-  // Actualizar referencia en BD
   await query(
     'UPDATE donaciones SET referencia_epayco = $1 WHERE id = $2',
     [referencia, donacion.id]
@@ -75,10 +62,8 @@ const initDonation = async (req, res) => {
     data: {
       ...donacion,
       referencia_epayco: referencia,
-      checkout_url: checkout.checkout_url,
-      test_mode: checkout.test,
     },
-    message: 'Donacion iniciada. Redirigiendo al portal de pago.',
+    message: 'Donacion registrada. Abriendo portal de pago.',
   });
 };
 
@@ -87,7 +72,6 @@ const handleWebhook = async (req, res) => {
   const body = req.body;
 
   try {
-    // Verificar firma
     const firmaValida = epaycoService.verifyWebhookSignature(body);
     if (!firmaValida) {
       console.error('[Webhook] Firma invalida:', body);
@@ -123,7 +107,6 @@ const handleWebhook = async (req, res) => {
       [nuevoEstado, refPayco || null, transactionId || null, referenciaInterna]
     );
 
-    // Si la donacion fue completada y no se ha enviado comprobante
     if (nuevoEstado === 'completada' && !donacion.comprobante_enviado) {
       const donacionCompleta = { ...donacion, referencia_epayco: referenciaInterna };
       emailService.sendDonationReceipt(donacionCompleta).then(() => {

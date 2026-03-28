@@ -49,6 +49,13 @@ const updatePage = async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // Eliminar secciones que ya no están en la lista enviada
+    const nombresActuales = secciones.map((s) => s.seccion).filter(Boolean);
+    await client.query(
+      `DELETE FROM contenido_paginas WHERE pagina = $1 AND seccion != ALL($2::text[])`,
+      [pagina, nombresActuales]
+    );
+
     for (const [index, seccion] of secciones.entries()) {
       if (!seccion.seccion) continue;
 
