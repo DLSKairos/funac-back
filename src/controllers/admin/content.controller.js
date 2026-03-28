@@ -1,7 +1,5 @@
-const path = require('path');
-const fs = require('fs');
 const { query, getClient } = require('../../config/database');
-const { buildFileUrl, formatFileSize } = require('../../utils/helpers');
+const { cloudinary } = require('../../config/cloudinary');
 
 // ---- CAROUSEL ----
 
@@ -17,9 +15,6 @@ const uploadCarouselImages = async (req, res) => {
   const creadas = [];
 
   for (const file of req.files) {
-    const urlImagen = buildFileUrl('carousel', file.filename);
-    const rutaArchivo = path.join('uploads', 'carousel', file.filename);
-
     const result = await query(
       `INSERT INTO imagenes_carrusel (titulo, nombre_archivo, url_imagen, ruta_archivo, tamano_archivo, orden)
        VALUES ($1, $2, $3, $4, $5, $6)
@@ -27,8 +22,8 @@ const uploadCarouselImages = async (req, res) => {
       [
         file.originalname.replace(/\.[^/.]+$/, ''),
         file.originalname,
-        urlImagen,
-        rutaArchivo,
+        file.path,       // Cloudinary URL
+        file.filename,   // Cloudinary public_id for deletion
         file.size,
         nextOrden++,
       ]
@@ -89,11 +84,8 @@ const deleteCarouselImage = async (req, res) => {
     return res.status(404).json({ success: false, error: 'Imagen no encontrada' });
   }
 
-  // Eliminar archivo fisico
-  const filePath = path.resolve(process.cwd(), imagen.ruta_archivo);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
+  // Eliminar archivo de Cloudinary usando el public_id almacenado en ruta_archivo
+  await cloudinary.uploader.destroy(imagen.ruta_archivo);
 
   await query('DELETE FROM imagenes_carrusel WHERE id = $1', [id]);
 
@@ -132,9 +124,6 @@ const uploadPdf = async (req, res) => {
     return res.status(400).json({ success: false, error: 'El titulo es requerido' });
   }
 
-  const urlPdf = buildFileUrl('pdfs', req.file.filename);
-  const rutaArchivo = path.join('uploads', 'pdfs', req.file.filename);
-
   const result = await query(
     `INSERT INTO pdfs_informativos (titulo, descripcion, nombre_archivo, url_pdf, ruta_archivo, tamano_archivo)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -143,8 +132,8 @@ const uploadPdf = async (req, res) => {
       titulo,
       descripcion || null,
       req.file.originalname,
-      urlPdf,
-      rutaArchivo,
+      req.file.path,       // Cloudinary URL
+      req.file.filename,   // Cloudinary public_id for deletion
       req.file.size,
     ]
   );
@@ -174,11 +163,8 @@ const deletePdf = async (req, res) => {
     return res.status(404).json({ success: false, error: 'PDF no encontrado' });
   }
 
-  // Eliminar archivo fisico
-  const filePath = path.resolve(process.cwd(), pdf.ruta_archivo);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
+  // Eliminar archivo de Cloudinary usando el public_id almacenado en ruta_archivo
+  await cloudinary.uploader.destroy(pdf.ruta_archivo, { resource_type: 'raw' });
 
   await query('DELETE FROM pdfs_informativos WHERE id = $1', [id]);
 

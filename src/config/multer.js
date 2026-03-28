@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { carouselStorage, pdfStorage } = require('./cloudinary');
 
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) {
@@ -15,18 +16,7 @@ const generateFilename = (file) => {
   return `${timestamp}-${random}${ext}`;
 };
 
-// Carousel: JPG, PNG, WEBP — max 2MB
-const storageCarousel = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(process.cwd(), 'uploads', 'carousel');
-    ensureDir(dir);
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, generateFilename(file));
-  },
-});
-
+// Carousel: JPG, PNG, WEBP — max 2MB — stored in Cloudinary
 const fileFilterCarousel = (req, file, cb) => {
   const allowed = ['image/jpeg', 'image/png', 'image/webp'];
   if (allowed.includes(file.mimetype)) {
@@ -37,23 +27,12 @@ const fileFilterCarousel = (req, file, cb) => {
 };
 
 const uploadCarousel = multer({
-  storage: storageCarousel,
+  storage: carouselStorage,
   fileFilter: fileFilterCarousel,
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
-// PDF: solo PDF — max 10MB
-const storagePDF = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(process.cwd(), 'uploads', 'pdfs');
-    ensureDir(dir);
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, generateFilename(file));
-  },
-});
-
+// PDF: solo PDF — max 10MB — stored in Cloudinary
 const fileFilterPDF = (req, file, cb) => {
   if (file.mimetype === 'application/pdf') {
     cb(null, true);
@@ -63,12 +42,12 @@ const fileFilterPDF = (req, file, cb) => {
 };
 
 const uploadPDF = multer({
-  storage: storagePDF,
+  storage: pdfStorage,
   fileFilter: fileFilterPDF,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// CV: PDF, DOC, DOCX — max 5MB
+// CV: PDF, DOC, DOCX — max 5MB — disk storage (unchanged)
 const storageCV = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(process.cwd(), 'uploads', 'cvs');
