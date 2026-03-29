@@ -1,4 +1,5 @@
-const path = require('path');
+const https = require('https');
+const http = require('http');
 const { query } = require('../config/database');
 
 const getImages = async (req, res) => {
@@ -29,7 +30,7 @@ const downloadPdf = async (req, res) => {
   const { id } = req.params;
 
   const result = await query(
-    'SELECT id, titulo, nombre_archivo, ruta_archivo FROM pdfs_informativos WHERE id = $1 AND activo = TRUE',
+    'SELECT id, titulo, nombre_archivo, url_pdf FROM pdfs_informativos WHERE id = $1 AND activo = TRUE',
     [id]
   );
 
@@ -42,13 +43,15 @@ const downloadPdf = async (req, res) => {
   // Incrementar contador de descargas (fire and forget)
   query('UPDATE pdfs_informativos SET descargas = descargas + 1 WHERE id = $1', [id]).catch(console.error);
 
-  const filePath = path.resolve(process.cwd(), pdf.ruta_archivo);
-  res.download(filePath, pdf.nombre_archivo, (err) => {
-    if (err) {
-      if (!res.headersSent) {
-        res.status(404).json({ success: false, error: 'Archivo no encontrado en el servidor' });
-      }
-    }
+  const filename = `${pdf.titulo}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
+  const client = pdf.url_pdf.startsWith('https') ? https : http;
+  client.get(pdf.url_pdf, (stream) => {
+    stream.pipe(res);
+  }).on('error', () => {
+    if (!res.headersSent) res.status(500).json({ success: false, error: 'Error al descargar el archivo' });
   });
 };
 
