@@ -17,6 +17,7 @@ const contactRoutes = require('./src/routes/contact.routes');
 const donationsRoutes = require('./src/routes/donations.routes');
 const pagesRoutes = require('./src/routes/pages.routes');
 const settingsRoutes = require('./src/routes/settings.routes');
+const newsModalRoutes = require('./src/routes/news-modal.routes');
 
 // Rutas admin
 const adminDashboardRoutes = require('./src/routes/admin/dashboard.routes');
@@ -26,6 +27,7 @@ const adminDonationsRoutes = require('./src/routes/admin/donations.routes');
 const adminSettingsRoutes = require('./src/routes/admin/settings.routes');
 const adminPagesRoutes = require('./src/routes/admin/pages.routes');
 const adminLogsRoutes = require('./src/routes/admin/logs.routes');
+const adminNewsModalRoutes = require('./src/routes/admin/news-modal.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -88,6 +90,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/donations', donationsRoutes);
 app.use('/api/pages', pagesRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/noticias-modal', newsModalRoutes);
 
 // ---- RUTAS API ADMIN ----
 app.use('/api/admin/dashboard', adminDashboardRoutes);
@@ -98,6 +101,7 @@ app.use('/api/admin/settings', adminSettingsRoutes);
 app.use('/api/admin/pages', adminPagesRoutes);
 app.use('/api/admin/config', adminSettingsRoutes);
 app.use('/api/admin/logs', adminLogsRoutes);
+app.use('/api/admin/noticias-modal', adminNewsModalRoutes);
 
 // ---- 404 ----
 app.use((req, res) => {
