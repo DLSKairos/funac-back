@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { carouselStorage, pdfStorage } = require('./cloudinary');
+const { carouselStorage, pdfStorage, sectionStorage, newsModalStorage } = require('./cloudinary');
 
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) {
@@ -47,6 +47,20 @@ const uploadPDF = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+// Section images (page hero/testimonio images): JPG, PNG, WEBP — max 2MB — stored in Cloudinary
+const uploadSectionImage = multer({
+  storage: sectionStorage,
+  fileFilter: fileFilterCarousel,
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
+// News modal image: JPG, PNG, WEBP — max 2MB — stored in Cloudinary
+const uploadNewsModalImage = multer({
+  storage: newsModalStorage,
+  fileFilter: fileFilterCarousel,
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
 // CV: PDF, DOC, DOCX — max 5MB — disk storage (unchanged)
 const storageCV = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -78,4 +92,4 @@ const uploadCV = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-module.exports = { uploadCarousel, uploadPDF, uploadCV };
+module.exports = { uploadCarousel, uploadPDF, uploadCV, uploadSectionImage, uploadNewsModalImage };

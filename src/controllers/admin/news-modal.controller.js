@@ -1,9 +1,10 @@
 const { query } = require('../../config/database');
+const { cloudinary } = require('../../config/cloudinary');
 
 // GET /api/admin/noticias-modal - devuelve la config completa sin filtrar por activo
 const getNewsModal = async (req, res) => {
   const result = await query(
-    'SELECT id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, actualizado_en FROM configuracion_modal_noticia LIMIT 1',
+    'SELECT id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, imagen_url, actualizado_en FROM configuracion_modal_noticia LIMIT 1',
     []
   );
 
@@ -60,7 +61,71 @@ const updateNewsModal = async (req, res) => {
   res.json({ success: true, message: 'Modal de noticias actualizado exitosamente' });
 };
 
+// POST /api/admin/noticias-modal/imagen - sube o reemplaza la imagen del modal
+const uploadNewsModalImage = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: 'No se envio ningun archivo' });
+  }
+
+  const existing = await query('SELECT id, imagen_public_id FROM configuracion_modal_noticia LIMIT 1', []);
+  const config = existing.rows[0];
+
+  if (!config) {
+    return res.status(400).json({ success: false, error: 'Debe guardar la configuracion del modal antes de subir una imagen' });
+  }
+
+  if (config.imagen_public_id) {
+    await cloudinary.uploader.destroy(config.imagen_public_id);
+  }
+
+  const result = await query(
+    `UPDATE configuracion_modal_noticia
+     SET imagen_url = $1, imagen_public_id = $2, actualizado_en = NOW()
+     WHERE id = $3
+     RETURNING id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, imagen_url, actualizado_en`,
+    [req.file.path, req.file.filename, config.id]
+  );
+
+  query(
+    "INSERT INTO logs_actividad_admin (usuario_id, accion, descripcion) VALUES ($1, $2, $3)",
+    [req.user.id, 'update_news_modal_image', 'Imagen del modal de noticias actualizada']
+  ).catch(console.error);
+
+  res.json({ success: true, data: result.rows[0], message: 'Imagen actualizada exitosamente' });
+};
+
+// DELETE /api/admin/noticias-modal/imagen - quita la imagen del modal
+const deleteNewsModalImage = async (req, res) => {
+  const existing = await query('SELECT id, imagen_public_id FROM configuracion_modal_noticia LIMIT 1', []);
+  const config = existing.rows[0];
+
+  if (!config) {
+    return res.status(404).json({ success: false, error: 'Configuracion no encontrada' });
+  }
+
+  if (config.imagen_public_id) {
+    await cloudinary.uploader.destroy(config.imagen_public_id);
+  }
+
+  const result = await query(
+    `UPDATE configuracion_modal_noticia
+     SET imagen_url = NULL, imagen_public_id = NULL, actualizado_en = NOW()
+     WHERE id = $1
+     RETURNING id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, imagen_url, actualizado_en`,
+    [config.id]
+  );
+
+  query(
+    "INSERT INTO logs_actividad_admin (usuario_id, accion, descripcion) VALUES ($1, $2, $3)",
+    [req.user.id, 'delete_news_modal_image', 'Imagen del modal de noticias eliminada']
+  ).catch(console.error);
+
+  res.json({ success: true, data: result.rows[0], message: 'Imagen eliminada exitosamente' });
+};
+
 module.exports = {
   getNewsModal,
   updateNewsModal,
+  uploadNewsModalImage,
+  deleteNewsModalImage,
 };

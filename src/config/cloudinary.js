@@ -25,4 +25,22 @@ const pdfStorage = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, carouselStorage, pdfStorage };
+const sectionStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'funac/secciones',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  },
+});
+
+const newsModalStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'funac/news-modal',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  },
+});
+
+module.exports = { cloudinary, carouselStorage, pdfStorage, sectionStorage, newsModalStorage };

@@ -3,7 +3,7 @@ const { query } = require('../config/database');
 // GET /api/noticias-modal - público, no requiere auth
 const getNewsModal = async (req, res) => {
   const result = await query(
-    'SELECT id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, actualizado_en FROM configuracion_modal_noticia LIMIT 1',
+    'SELECT id, activo, titulo, subtitulo, badge_texto, highlight_texto, url_destino, etiqueta_boton, imagen_url, actualizado_en FROM configuracion_modal_noticia LIMIT 1',
     []
   );
 
