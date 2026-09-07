@@ -178,6 +178,153 @@ const sendAdminNotification = async (type, data) => {
   });
 };
 
+const AREAS_INTERES_LABELS = {
+  construccion: 'Construccion',
+  educacion: 'Educacion',
+  salud: 'Salud',
+  recaudacion: 'Recaudacion',
+  capacitacion: 'Capacitacion',
+  comunicaciones: 'Comunicaciones',
+  juridico: 'Juridico',
+  administrativo: 'Administrativo',
+};
+
+const formatAreasInteres = (areas) => {
+  if (!areas) return '';
+  const list = Array.isArray(areas) ? areas : JSON.parse(areas);
+  return list.map((a) => AREAS_INTERES_LABELS[a] || a).join(', ');
+};
+
+const summaryRow = (label, value) =>
+  value ? `<tr><td style="padding: 6px 0; color: #555; vertical-align: top; white-space: nowrap; padding-right: 12px;">${label}:</td><td style="padding: 6px 0;">${value}</td></tr>` : '';
+
+/**
+ * Envia al correo de notificacion de voluntariado el resumen completo de una
+ * postulacion junto con la hoja de vida adjunta (PDF), una vez que el CV fue subido.
+ */
+const sendVolunteerApplicationSummary = async (volunteer, cvPath) => {
+  const notificationEmail = process.env.VOLUNTEER_NOTIFICATION_EMAIL;
+  if (!notificationEmail) {
+    console.warn('VOLUNTEER_NOTIFICATION_EMAIL no esta configurado: no se envio el resumen de la postulacion');
+    return;
+  }
+  const fromEmail = process.env.VOLUNTEER_FROM_EMAIL;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0;">
+      <div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <div style="background: #1a5276; padding: 32px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">FUNAC</h1>
+          <p style="color: #aed6f1; margin: 8px 0 0;">Nueva postulacion de voluntariado</p>
+        </div>
+        <div style="padding: 32px;">
+          <h2 style="color: #1a5276; margin-top: 0;">${volunteer.nombre_completo}</h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            ${summaryRow('Cedula', volunteer.cedula)}
+            ${summaryRow('Email', volunteer.email)}
+            ${summaryRow('Telefono', volunteer.telefono)}
+            ${summaryRow('Ciudad', volunteer.ciudad)}
+            ${summaryRow('Direccion', volunteer.direccion)}
+            ${summaryRow('Nivel de estudios', volunteer.nivel_estudios)}
+            ${summaryRow('Profesion / ocupacion', volunteer.profesion_ocupacion)}
+            ${summaryRow('Disponibilidad', volunteer.disponibilidad_horaria)}
+            ${summaryRow('Areas de interes', formatAreasInteres(volunteer.areas_interes))}
+            ${summaryRow('Habilidades especiales', volunteer.habilidades_especiales)}
+            ${summaryRow('Motivacion', volunteer.motivacion)}
+          </table>
+          <p style="color: #666; margin-top: 24px;">Se adjunta la hoja de vida enviada por el postulante.</p>
+        </div>
+        <div style="background: #f8f9fa; padding: 16px; text-align: center; color: #888; font-size: 12px;">
+          <p style="margin: 0;">FUNAC &copy; ${new Date().getFullYear()} | Sistema de notificaciones</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendMail({
+    ...(fromEmail ? { from: `FUNAC Voluntariado <${fromEmail}>` } : {}),
+    to: notificationEmail,
+    subject: `Nueva postulacion de voluntariado: ${volunteer.nombre_completo}`,
+    html,
+    attachments: cvPath
+      ? [{ filename: volunteer.nombre_archivo_cv || 'hoja-de-vida.pdf', path: cvPath }]
+      : [],
+  });
+};
+
+const ESTADO_INFO = {
+  pendiente: {
+    subject: 'Tu postulacion esta pendiente de revision',
+    message: 'Tu postulacion ha sido registrada y esta pendiente de revision por nuestro equipo.',
+  },
+  en_revision: {
+    subject: 'Tu postulacion esta en revision',
+    message: 'Nuestro equipo esta revisando tu postulacion. Te contactaremos pronto con una respuesta.',
+  },
+  aprobado: {
+    subject: 'Tu postulacion como voluntario fue aprobada',
+    message: 'Felicidades, tu postulacion ha sido aprobada. Pronto nos pondremos en contacto contigo para contarte los siguientes pasos.',
+  },
+  rechazado: {
+    subject: 'Actualizacion sobre tu postulacion como voluntario',
+    message: 'Gracias por tu interes en ser voluntario de FUNAC. En esta ocasion no continuaremos con tu postulacion, pero te invitamos a intentarlo nuevamente en el futuro.',
+  },
+  inactivo: {
+    subject: 'Tu estado como voluntario ha cambiado',
+    message: 'Tu estado como voluntario en FUNAC ha sido marcado como inactivo.',
+  },
+};
+
+/**
+ * Notifica al postulante cuando el admin cambia el estado de su postulacion.
+ */
+const sendVolunteerStatusUpdate = async (volunteer) => {
+  const info = ESTADO_INFO[volunteer.estado];
+  if (!info) return;
+
+  const fromEmail = process.env.VOLUNTEER_FROM_EMAIL;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0;">
+      <div style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <div style="background: #1a5276; padding: 32px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">FUNAC</h1>
+          <p style="color: #aed6f1; margin: 8px 0 0;">Actualizacion de tu postulacion</p>
+        </div>
+        <div style="padding: 32px;">
+          <p>Estimado/a <strong>${volunteer.nombre_completo}</strong>,</p>
+          <p>${info.message}</p>
+          ${volunteer.notas_admin ? `
+            <div style="background: #eaf4fb; border-left: 4px solid #1a5276; padding: 16px; margin: 24px 0; border-radius: 4px;">
+              <p style="margin: 0;"><strong>Nota de nuestro equipo:</strong></p>
+              <p style="margin: 8px 0 0;">${volunteer.notas_admin}</p>
+            </div>
+          ` : ''}
+          <p style="color: #666;">Si tienes alguna pregunta, no dudes en contactarnos.</p>
+        </div>
+        <div style="background: #f8f9fa; padding: 16px; text-align: center; color: #888; font-size: 12px;">
+          <p style="margin: 0;">FUNAC &copy; ${new Date().getFullYear()} | Todos los derechos reservados</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await sendMail({
+    ...(fromEmail ? { from: `FUNAC Voluntariado <${fromEmail}>` } : {}),
+    to: volunteer.email,
+    subject: `${info.subject} - FUNAC`,
+    html,
+  });
+};
+
 /**
  * Envia comprobante de donacion exitosa al donante
  */
@@ -237,4 +384,6 @@ module.exports = {
   sendContactConfirmation,
   sendAdminNotification,
   sendDonationReceipt,
+  sendVolunteerApplicationSummary,
+  sendVolunteerStatusUpdate,
 };

@@ -105,10 +105,17 @@ const uploadCV = async (req, res) => {
   const rutaArchivo = path.join('uploads', 'cvs', filename);
   const urlCv = buildFileUrl('cvs', filename);
 
-  await query(
-    'UPDATE voluntarios SET nombre_archivo_cv = $1, ruta_archivo_cv = $2, url_cv = $3 WHERE id = $4',
+  const updated = await query(
+    `UPDATE voluntarios SET nombre_archivo_cv = $1, ruta_archivo_cv = $2, url_cv = $3 WHERE id = $4
+     RETURNING id, nombre_completo, cedula, email, telefono, ciudad, direccion, nivel_estudios,
+               profesion_ocupacion, habilidades_especiales, disponibilidad_horaria, motivacion,
+               areas_interes, nombre_archivo_cv`,
     [req.file.originalname, rutaArchivo, urlCv, id]
   );
+
+  emailService
+    .sendVolunteerApplicationSummary(updated.rows[0], req.file.path)
+    .catch(console.error);
 
   res.json({
     success: true,

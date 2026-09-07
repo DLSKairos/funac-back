@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const { query } = require('../../config/database');
 const { calcularEdad } = require('../../utils/helpers');
+const emailService = require('../../services/email.service');
 
 const ESTADOS_VALIDOS = ['pendiente', 'en_revision', 'aprobado', 'rechazado', 'inactivo'];
 
@@ -152,13 +153,15 @@ const updateVolunteerStatus = async (req, res) => {
     `UPDATE voluntarios
      SET estado = $1, notas_admin = $2, actualizado_en = NOW()
      WHERE id = $3
-     RETURNING id, nombre_completo, estado, notas_admin, actualizado_en`,
+     RETURNING id, nombre_completo, email, estado, notas_admin, actualizado_en`,
     [estado, notas_admin || null, id]
   );
 
   if (result.rows.length === 0) {
     return res.status(404).json({ success: false, error: 'Voluntario no encontrado' });
   }
+
+  emailService.sendVolunteerStatusUpdate(result.rows[0]).catch(console.error);
 
   query(
     "INSERT INTO logs_actividad_admin (usuario_id, accion, descripcion, recurso_id) VALUES ($1, $2, $3, $4)",
