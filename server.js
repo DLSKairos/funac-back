@@ -65,6 +65,16 @@ app.use(cors({
 // ---- SEGURIDAD ----
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // Permite que el frontend (otro origen) incruste respuestas de esta API en un
+  // <iframe> (ej: vista previa de PDFs). X-Frame-Options no soporta multiples
+  // origenes, por eso se desactiva y se usa unicamente CSP frame-ancestors.
+  frameguard: false,
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'frame-ancestors': ["'self'", ...allowedOrigins],
+    },
+  },
 }));
 
 // ---- BODY PARSING ----
