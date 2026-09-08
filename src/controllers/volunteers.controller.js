@@ -1,8 +1,6 @@
 const Joi = require('joi');
-const path = require('path');
 const { query } = require('../config/database');
 const emailService = require('../services/email.service');
-const { buildFileUrl } = require('../utils/helpers');
 
 const volunteerSchema = Joi.object({
   nombre_completo: Joi.string().min(2).max(150).required().messages({
@@ -101,28 +99,25 @@ const uploadCV = async (req, res) => {
     return res.status(404).json({ success: false, error: 'Voluntario no encontrado' });
   }
 
-  const filename = req.file.filename;
-  const rutaArchivo = path.join('uploads', 'cvs', filename);
-  const urlCv = buildFileUrl('cvs', filename);
+  const urlCv = req.file.path;      // URL publica de Cloudinary
+  const publicId = req.file.filename; // public_id de Cloudinary, para poder borrar
 
   const updated = await query(
     `UPDATE voluntarios SET nombre_archivo_cv = $1, ruta_archivo_cv = $2, url_cv = $3 WHERE id = $4
      RETURNING id, nombre_completo, cedula, email, telefono, ciudad, direccion, nivel_estudios,
                profesion_ocupacion, habilidades_especiales, disponibilidad_horaria, motivacion,
                areas_interes, nombre_archivo_cv`,
-    [req.file.originalname, rutaArchivo, urlCv, id]
+    [req.file.originalname, publicId, urlCv, id]
   );
 
   emailService
-    .sendVolunteerApplicationSummary(updated.rows[0], req.file.path)
+    .sendVolunteerApplicationSummary(updated.rows[0], urlCv)
     .catch(console.error);
 
   res.json({
     success: true,
     data: {
       nombre_archivo: req.file.originalname,
-      nombre_almacenado: filename,
-      ruta: rutaArchivo,
       url: urlCv,
       tamano: req.file.size,
     },

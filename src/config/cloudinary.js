@@ -43,4 +43,13 @@ const newsModalStorage = new CloudinaryStorage({
   },
 });
 
-module.exports = { cloudinary, carouselStorage, pdfStorage, sectionStorage, newsModalStorage };
+const cvStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'funac/cvs',
+    resource_type: 'raw',
+    allowed_formats: ['pdf', 'doc', 'docx'],
+  },
+});
+
+module.exports = { cloudinary, carouselStorage, pdfStorage, sectionStorage, newsModalStorage, cvStorage };

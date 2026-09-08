@@ -1,20 +1,5 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { carouselStorage, pdfStorage, sectionStorage, newsModalStorage } = require('./cloudinary');
-
-const ensureDir = (dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-};
-
-const generateFilename = (file) => {
-  const ext = path.extname(file.originalname).toLowerCase();
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 100000);
-  return `${timestamp}-${random}${ext}`;
-};
+const { carouselStorage, pdfStorage, sectionStorage, newsModalStorage, cvStorage } = require('./cloudinary');
 
 // Carousel: JPG, PNG, WEBP — max 2MB — stored in Cloudinary
 const fileFilterCarousel = (req, file, cb) => {
@@ -61,18 +46,7 @@ const uploadNewsModalImage = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
-// CV: PDF, DOC, DOCX — max 5MB — disk storage (unchanged)
-const storageCV = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(process.cwd(), 'uploads', 'cvs');
-    ensureDir(dir);
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, generateFilename(file));
-  },
-});
-
+// CV: PDF, DOC, DOCX — max 5MB — stored in Cloudinary
 const fileFilterCV = (req, file, cb) => {
   const allowed = [
     'application/pdf',
@@ -87,7 +61,7 @@ const fileFilterCV = (req, file, cb) => {
 };
 
 const uploadCV = multer({
-  storage: storageCV,
+  storage: cvStorage,
   fileFilter: fileFilterCV,
   limits: { fileSize: 5 * 1024 * 1024 },
 });

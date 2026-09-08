@@ -1,8 +1,9 @@
-const path = require('path');
-const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const { query } = require('../../config/database');
 const { calcularEdad } = require('../../utils/helpers');
 const emailService = require('../../services/email.service');
+const { cloudinary } = require('../../config/cloudinary');
 
 const ESTADOS_VALIDOS = ['pendiente', 'en_revision', 'aprobado', 'rechazado', 'inactivo'];
 
@@ -117,7 +118,7 @@ const downloadVolunteerCV = async (req, res) => {
   const { id } = req.params;
 
   const result = await query(
-    'SELECT id, nombre_completo, nombre_archivo_cv, ruta_archivo_cv FROM voluntarios WHERE id = $1',
+    'SELECT id, nombre_completo, nombre_archivo_cv, url_cv FROM voluntarios WHERE id = $1',
     [id]
   );
 
@@ -126,15 +127,18 @@ const downloadVolunteerCV = async (req, res) => {
     return res.status(404).json({ success: false, error: 'Voluntario no encontrado' });
   }
 
-  if (!voluntario.ruta_archivo_cv) {
+  if (!voluntario.url_cv) {
     return res.status(404).json({ success: false, error: 'Este voluntario no tiene CV registrado' });
   }
 
-  const filePath = path.resolve(process.cwd(), voluntario.ruta_archivo_cv);
-  res.download(filePath, voluntario.nombre_archivo_cv || 'cv.pdf', (err) => {
-    if (err && !res.headersSent) {
-      res.status(404).json({ success: false, error: 'Archivo no encontrado en el servidor' });
-    }
+  const filename = voluntario.nombre_archivo_cv || 'cv.pdf';
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
+  const client = voluntario.url_cv.startsWith('https') ? https : http;
+  client.get(voluntario.url_cv, (stream) => {
+    stream.pipe(res);
+  }).on('error', () => {
+    if (!res.headersSent) res.status(500).json({ success: false, error: 'Error al descargar el archivo' });
   });
 };
 
@@ -188,12 +192,9 @@ const deleteVolunteer = async (req, res) => {
     return res.status(404).json({ success: false, error: 'Voluntario no encontrado' });
   }
 
-  // Eliminar CV si existe
+  // Eliminar CV de Cloudinary si existe
   if (voluntario.ruta_archivo_cv) {
-    const filePath = path.resolve(process.cwd(), voluntario.ruta_archivo_cv);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    await cloudinary.uploader.destroy(voluntario.ruta_archivo_cv, { resource_type: 'raw' }).catch(console.error);
   }
 
   await query('DELETE FROM voluntarios WHERE id = $1', [id]);

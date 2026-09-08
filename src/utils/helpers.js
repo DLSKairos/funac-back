@@ -60,15 +60,4 @@ const calcularEdad = (fechaNacimiento) => {
   return edad;
 };
 
-/**
- * Construye la URL publica de un archivo subido
- * @param {string} subdir - 'carousel', 'pdfs', 'cvs'
- * @param {string} filename
- * @returns {string}
- */
-const buildFileUrl = (subdir, filename) => {
-  const baseUrl = process.env.API_URL || 'http://localhost:5000';
-  return `${baseUrl}/uploads/${subdir}/${filename}`;
-};
-
-module.exports = { generateReference, formatFileSize, sanitizeHtml, calcularEdad, buildFileUrl };
+module.exports = { generateReference, formatFileSize, sanitizeHtml, calcularEdad };

@@ -4,7 +4,6 @@ require('express-async-errors');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 
 const { generalLimiter } = require('./src/middlewares/rateLimiter');
 const errorHandler = require('./src/middlewares/errorHandler');
@@ -34,6 +33,10 @@ const adminSectionImagesRoutes = require('./src/routes/admin/section-images.rout
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Render (y la mayoria de PaaS) corren la app detras de un proxy inverso.
+// Sin esto, express-rate-limit falla al validar X-Forwarded-For.
+app.set('trust proxy', 1);
 
 // ---- CORS ----
 const allowedOrigins = [
@@ -70,9 +73,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ---- RATE LIMITING GLOBAL ----
 app.use(generalLimiter);
-
-// ---- ARCHIVOS ESTATICOS ----
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ---- HEALTH CHECK ----
 app.get('/health', (req, res) => {
