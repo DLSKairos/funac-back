@@ -1,28 +1,42 @@
-const nodemailer = require('nodemailer');
+const fs = require('fs');
+const { Resend } = require('resend');
 
-let transporter = null;
+let resendClient = null;
 
-const getTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT) || 587,
-      secure: parseInt(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
+const getResendClient = () => {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
   }
-  return transporter;
+  return resendClient;
 };
 
-const sendMail = async (options) => {
-  const transport = getTransporter();
-  return transport.sendMail({
-    from: process.env.EMAIL_FROM || 'FUNAC <notificaciones@funac.org>',
-    ...options,
+/**
+ * Convierte los adjuntos con formato nodemailer ({ filename, path }) al
+ * formato que espera la API de Resend ({ filename, content: base64 }).
+ */
+const normalizeAttachments = (attachments) => {
+  if (!attachments || attachments.length === 0) return undefined;
+  return attachments.map(({ filename, path, content }) => ({
+    filename,
+    content: content || fs.readFileSync(path).toString('base64'),
+  }));
+};
+
+const sendMail = async ({ from, to, subject, html, attachments }) => {
+  const client = getResendClient();
+  const { data, error } = await client.emails.send({
+    from: from || process.env.EMAIL_FROM || 'FUNAC <notificaciones@funac.org>',
+    to,
+    subject,
+    html,
+    attachments: normalizeAttachments(attachments),
   });
+
+  if (error) {
+    throw new Error(`Resend error: ${error.message || JSON.stringify(error)}`);
+  }
+
+  return data;
 };
 
 /**
